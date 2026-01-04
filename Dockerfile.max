@@ -1,0 +1,69 @@
+# Multi-stage Dockerfile for CPU, GPU (CUDA), and Google Coral support
+# Base image with Python 3.9 (compatible with Coral requirements - packages require < 3.10)
+FROM python:3.9.17-slim-bullseye as base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    wget \
+    git \
+    gpg \
+    libusb-1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Google Coral Edge TPU drivers and runtime
+# This is required for the Edge TPU device to work
+RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/coral-edgetpu-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/coral-edgetpu-archive-keyring.gpg] https://packages.cloud.google.com/apt coral-edgetpu-stable main" | tee /etc/apt/sources.list.d/coral-edgetpu.list && \
+    apt-get update && \
+    apt-get install -y libedgetpu1-std && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Coral Python dependencies from Debian packages
+# (Wheel files can be added later if needed for specific Python versions)
+RUN apt-get update && \
+    apt-get install -y python3-tflite-runtime python3-pycoral && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install UV for fast Python package management
+RUN pip install --no-cache-dir uv
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY pyproject.toml ./
+COPY README.md ./
+COPY uv.lock* ./
+COPY src/ ./src/
+
+# Install Python dependencies using UV sync
+# This will create a virtual environment and install all dependencies
+# Try with frozen lock file first, fall back to sync if lock file doesn't exist
+RUN if [ -f uv.lock ]; then \
+        uv sync --frozen --no-dev; \
+    else \
+        uv sync --no-dev; \
+    fi
+
+# Note: Coral dependencies (tflite-runtime and pycoral) are installed above
+# They are installed from local wheel files (if available in whls/) or Debian packages
+
+# Activate the virtual environment for subsequent commands
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Install CUDA dependencies (for GPU support)
+# Note: This assumes the host has NVIDIA drivers and nvidia-container-toolkit
+# The actual CUDA libraries should be provided by the host via nvidia-docker
+
+# Copy inference script
+COPY docker/run_inference.py /app/run_inference.py
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/src
+
+# Default command
+CMD ["python", "/app/run_inference.py", "--help"]
+

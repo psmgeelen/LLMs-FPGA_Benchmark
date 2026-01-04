@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  cpu-benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llms-fpga-benchmark:latest
+    container_name: llms-fpga-cpu
+    network_mode: host
+    volumes:
+      - ./models:/app/models:ro
+      - ./results:/app/results
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: tail -f /dev/null  # Keep container running
+    profiles:
+      - cpu
+
+  gpu-benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llms-fpga-benchmark:latest
+    container_name: llms-fpga-gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    network_mode: host
+    volumes:
+      - ./models:/app/models:ro
+      - ./results:/app/results
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - PYTHONUNBUFFERED=1
+    command: tail -f /dev/null  # Keep container running
+    profiles:
+      - gpu
+
+  coral-benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llms-fpga-benchmark:latest
+    container_name: llms-fpga-coral
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./models:/app/models:ro
+      - ./results:/app/results
+      - /dev/bus/usb:/dev/bus/usb:rw
+    devices:
+      - /dev/apex_0:/dev/apex_0  # Adjust path based on your Coral device
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: tail -f /dev/null  # Keep container running
+    profiles:
+      - coral
+  
+  coral-benchmark-max:
+    build:
+      context: .
+      dockerfile: Dockerfile.max
+    image: llms-fpga-benchmark-max:latest
+    container_name: llms-fpga-coral-max
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./models:/app/models:ro
+      - ./results:/app/results
+      - /dev/bus/usb:/dev/bus/usb:rw
+    devices:
+      - /dev/apex_0:/dev/apex_0  # Adjust path based on your Coral device
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: tail -f /dev/null  # Keep container running
+    profiles:
+      - coral-max
+
