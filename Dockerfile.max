@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/coral-edgetpu-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/coral-edgetpu-archive-keyring.gpg] https://packages.cloud.google.com/apt coral-edgetpu-stable main" | tee /etc/apt/sources.list.d/coral-edgetpu.list && \
     apt-get update && \
-    apt-get install -y libedgetpu1-std && \
+    apt-get install -y libedgetpu1-max && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Coral Python dependencies from Debian packages
